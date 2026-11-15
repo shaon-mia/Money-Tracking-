@@ -1,0 +1,277 @@
+{
+  "entities": {
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "User settings, language, theme, currency, savings target, and app lock preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "language": { "type": "string", "enum": ["bn", "en"], "description": "App UI language." },
+        "themeMode": { "type": "string", "enum": ["light", "dark", "system"], "description": "Theme preference." },
+        "textScale": { "type": "string", "enum": ["small", "medium", "large"], "description": "Typography scale." },
+        "currencyCode": { "type": "string", "enum": ["BDT", "USD", "EUR", "INR", "GBP"], "description": "Currency code." },
+        "monthlySavingsGoal": { "type": "number", "description": "Target monthly savings in user currency." },
+        "biometricLockEnabled": { "type": "boolean", "description": "Whether biometric unlock is enabled." },
+        "pinEnabled": { "type": "boolean", "description": "Whether 4-digit PIN app lock is enabled." },
+        "pinHash": { "type": "string", "description": "SHA-256 hash of user PIN if set." },
+        "hideBalances": { "type": "boolean", "description": "Privacy toggle to mask monetary amounts." },
+        "demoSeeded": { "type": "boolean", "description": "Whether initial demo data has been seeded." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": [
+        "userId",
+        "language",
+        "themeMode",
+        "textScale",
+        "currencyCode",
+        "monthlySavingsGoal",
+        "biometricLockEnabled",
+        "pinEnabled",
+        "hideBalances",
+        "demoSeeded",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Income or expense category with bilingual names, icon key, and color.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nameBn": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "iconKey": { "type": "string" },
+        "colorHex": { "type": "integer" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "nameBn",
+        "nameEn",
+        "type",
+        "iconKey",
+        "colorHex",
+        "isDefault",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Daily income or expense entry with category, date/time, payment method, and optional photo receipt.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "categoryId": { "type": "string" },
+        "categoryNameBn": { "type": "string" },
+        "categoryNameEn": { "type": "string" },
+        "timestampMillis": { "type": "integer" },
+        "note": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "bank", "mobile_banking"] },
+        "photoUri": { "type": "string" },
+        "clientRequestId": { "type": "string" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "type",
+        "amount",
+        "categoryId",
+        "categoryNameBn",
+        "categoryNameEn",
+        "timestampMillis",
+        "note",
+        "paymentMethod",
+        "isDemo",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly spending limit for a specific expense category.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryNameBn": { "type": "string" },
+        "categoryNameEn": { "type": "string" },
+        "monthKey": { "type": "string" },
+        "limitAmount": { "type": "number" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "categoryId",
+        "categoryNameBn",
+        "categoryNameEn",
+        "monthKey",
+        "limitAmount",
+        "isDemo",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavingsGoal": {
+      "title": "SavingsGoal",
+      "description": "Individual savings target and current progress.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "savedAmount": { "type": "number" },
+        "targetDateMillis": { "type": "integer" },
+        "iconKey": { "type": "string" },
+        "colorHex": { "type": "integer" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "title",
+        "targetAmount",
+        "savedAmount",
+        "targetDateMillis",
+        "iconKey",
+        "colorHex",
+        "isDemo",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SavingsEntry": {
+      "title": "SavingsEntry",
+      "description": "Deposit record added to a savings goal.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "goalId": { "type": "string" },
+        "goalTitle": { "type": "string" },
+        "amount": { "type": "number" },
+        "note": { "type": "string" },
+        "timestampMillis": { "type": "integer" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "goalId",
+        "goalTitle",
+        "amount",
+        "note",
+        "timestampMillis",
+        "isDemo",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LendBorrowRecord": {
+      "title": "LendBorrowRecord",
+      "description": "Money lent to or borrowed from someone with due date and repayment tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["lend", "borrow"] },
+        "personName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "dateMillis": { "type": "integer" },
+        "dueDateMillis": { "type": "integer" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["unpaid", "partial", "paid"] },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "kind",
+        "personName",
+        "phoneNumber",
+        "totalAmount",
+        "paidAmount",
+        "dateMillis",
+        "dueDateMillis",
+        "description",
+        "status",
+        "isDemo",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LendBorrowPayment": {
+      "title": "LendBorrowPayment",
+      "description": "Repayment installment entry for a lend or borrow record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "recordId": { "type": "string" },
+        "amount": { "type": "number" },
+        "note": { "type": "string" },
+        "timestampMillis": { "type": "integer" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "recordId",
+        "amount",
+        "note",
+        "timestampMillis",
+        "isDemo",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "User preferences document (settingId = 'preferences')."
+    },
+    "/users/{userId}/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "User's custom and default income/expense categories."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "User's daily income and expense transactions."
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": { "$ref": "#/entities/Budget" },
+      "description": "User's monthly category budgets."
+    },
+    "/users/{userId}/savingsGoals/{goalId}": {
+      "schema": { "$ref": "#/entities/SavingsGoal" },
+      "description": "User's savings goals."
+    },
+    "/users/{userId}/savingsEntries/{entryId}": {
+      "schema": { "$ref": "#/entities/SavingsEntry" },
+      "description": "User's savings deposit history."
+    },
+    "/users/{userId}/lendBorrows/{recordId}": {
+      "schema": { "$ref": "#/entities/LendBorrowRecord" },
+      "description": "User's lending and borrowing records."
+    },
+    "/users/{userId}/lendBorrowPayments/{paymentId}": {
+      "schema": { "$ref": "#/entities/LendBorrowPayment" },
+      "description": "Repayment history entries for lend/borrow records."
+    }
+  }
+}

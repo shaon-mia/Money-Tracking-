@@ -1,0 +1,356 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function hasValidTimestampsOnCreate(data) {
+      return data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function hasValidTimestampsOnUpdate(data) {
+      return data.createdAt == existing().createdAt &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // Validation helpers
+    function isValidPreferences(data, userId) {
+      return data.userId == userId &&
+             data.language in ['bn', 'en'] &&
+             data.themeMode in ['light', 'dark', 'system'] &&
+             data.textScale in ['small', 'medium', 'large'] &&
+             data.currencyCode in ['BDT', 'USD', 'EUR', 'INR', 'GBP'] &&
+             data.monthlySavingsGoal is number && data.monthlySavingsGoal >= 0 && data.monthlySavingsGoal <= 1000000000 &&
+             data.biometricLockEnabled is bool &&
+             data.pinEnabled is bool &&
+             (!('pinHash' in data) || data.pinHash == null || (data.pinHash is string && data.pinHash.size() <= 128)) &&
+             (!('deletePasswordEnabled' in data) || data.deletePasswordEnabled is bool) &&
+             (!('deletePasswordHash' in data) || data.deletePasswordHash == null || (data.deletePasswordHash is string && data.deletePasswordHash.size() <= 128)) &&
+             data.hideBalances is bool &&
+             data.demoSeeded is bool;
+    }
+
+    function isValidCategory(data, userId) {
+      return data.userId == userId &&
+             data.nameBn is string && data.nameBn.size() >= 1 && data.nameBn.size() <= 60 &&
+             data.nameEn is string && data.nameEn.size() >= 1 && data.nameEn.size() <= 60 &&
+             data.type in ['income', 'expense'] &&
+             data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 40 &&
+             data.colorHex is int &&
+             data.isDefault is bool;
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.userId == userId &&
+             data.type in ['income', 'expense'] &&
+             data.amount is number && data.amount > 0 && data.amount <= 1000000000 &&
+             isValidId(data.categoryId) &&
+             data.categoryNameBn is string && data.categoryNameBn.size() >= 1 && data.categoryNameBn.size() <= 60 &&
+             data.categoryNameEn is string && data.categoryNameEn.size() >= 1 && data.categoryNameEn.size() <= 60 &&
+             data.timestampMillis is int && data.timestampMillis > 0 &&
+             data.note is string && data.note.size() <= 300 &&
+             data.paymentMethod in ['cash', 'bank', 'mobile_banking', 'other'] &&
+             (!('photoUri' in data) || data.photoUri == null || (data.photoUri is string && data.photoUri.size() <= 1000)) &&
+             (!('clientRequestId' in data) || data.clientRequestId == null || (data.clientRequestId is string && data.clientRequestId.size() <= 64)) &&
+             data.isDemo is bool;
+    }
+
+    function isValidBudget(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.categoryId) &&
+             data.categoryNameBn is string && data.categoryNameBn.size() >= 1 && data.categoryNameBn.size() <= 60 &&
+             data.categoryNameEn is string && data.categoryNameEn.size() >= 1 && data.categoryNameEn.size() <= 60 &&
+             data.monthKey is string && data.monthKey.size() == 7 && data.monthKey.matches('^[0-9]{4}-[0-9]{2}$') &&
+             data.limitAmount is number && data.limitAmount > 0 && data.limitAmount <= 1000000000 &&
+             data.isDemo is bool;
+    }
+
+    function isValidSavingsGoal(data, userId) {
+      return data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 80 &&
+             data.targetAmount is number && data.targetAmount > 0 && data.targetAmount <= 1000000000 &&
+             data.savedAmount is number && data.savedAmount >= 0 && data.savedAmount <= 1000000000 &&
+             data.targetDateMillis is int && data.targetDateMillis >= 0 &&
+             data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 40 &&
+             data.colorHex is int &&
+             data.isDemo is bool;
+    }
+
+    function isValidSavingsEntry(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.goalId) &&
+             data.goalTitle is string && data.goalTitle.size() >= 1 && data.goalTitle.size() <= 80 &&
+             data.amount is number && data.amount > 0 && data.amount <= 1000000000 &&
+             data.note is string && data.note.size() <= 200 &&
+             data.timestampMillis is int && data.timestampMillis > 0 &&
+             data.isDemo is bool;
+    }
+
+    function isValidLendBorrow(data, userId) {
+      return data.userId == userId &&
+             data.kind in ['lend', 'borrow'] &&
+             data.personName is string && data.personName.size() >= 1 && data.personName.size() <= 80 &&
+             data.phoneNumber is string && data.phoneNumber.size() <= 30 &&
+             data.totalAmount is number && data.totalAmount > 0 && data.totalAmount <= 1000000000 &&
+             data.paidAmount is number && data.paidAmount >= 0 && data.paidAmount <= data.totalAmount &&
+             data.dateMillis is int && data.dateMillis > 0 &&
+             data.dueDateMillis is int && data.dueDateMillis >= 0 &&
+             data.description is string && data.description.size() <= 300 &&
+             data.status in ['unpaid', 'partial', 'paid'] &&
+             data.isDemo is bool;
+    }
+
+    function isValidLendBorrowPayment(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.recordId) &&
+             data.amount is number && data.amount > 0 && data.amount <= 1000000000 &&
+             data.note is string && data.note.size() <= 200 &&
+             data.timestampMillis is int && data.timestampMillis > 0 &&
+             data.isDemo is bool;
+    }
+
+    // User-scoped collections
+    match /users/{userId} {
+      allow get, delete: if isOwner(userId) && isValidId(userId);
+      allow create, update: if isOwner(userId) && isValidId(userId) && incoming().keys().hasOnly(['userId', 'updatedAt']);
+
+      match /settings/{settingId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && settingId == 'preferences';
+        allow create: if isOwner(userId) &&
+                         settingId == 'preferences' &&
+                         incoming().keys().hasAll([
+                           'userId', 'language', 'themeMode', 'textScale', 'currencyCode',
+                           'monthlySavingsGoal', 'biometricLockEnabled', 'pinEnabled',
+                           'hideBalances', 'demoSeeded', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'language', 'themeMode', 'textScale', 'currencyCode',
+                           'monthlySavingsGoal', 'biometricLockEnabled', 'pinEnabled', 'pinHash',
+                           'deletePasswordEnabled', 'deletePasswordHash',
+                           'hideBalances', 'demoSeeded', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidPreferences(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         settingId == 'preferences' &&
+                         isValidPreferences(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         hasValidTimestampsOnUpdate(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'language', 'themeMode', 'textScale', 'currencyCode',
+                           'monthlySavingsGoal', 'biometricLockEnabled', 'pinEnabled', 'pinHash',
+                           'deletePasswordEnabled', 'deletePasswordHash',
+                           'hideBalances', 'demoSeeded', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && settingId == 'preferences';
+      }
+
+      match /categories/{categoryId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(categoryId);
+        allow create: if isOwner(userId) &&
+                         isValidId(categoryId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'nameBn', 'nameEn', 'type', 'iconKey',
+                           'colorHex', 'isDefault', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'nameBn', 'nameEn', 'type', 'iconKey',
+                           'colorHex', 'isDefault', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidCategory(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(categoryId) &&
+                         isValidCategory(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         hasValidTimestampsOnUpdate(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'nameBn', 'nameEn', 'type', 'iconKey', 'colorHex', 'updatedAt'
+                         ]);
+      }
+
+      match /transactions/{transactionId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(transactionId);
+        allow create: if isOwner(userId) &&
+                         isValidId(transactionId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'type', 'amount', 'categoryId', 'categoryNameBn',
+                           'categoryNameEn', 'timestampMillis', 'note', 'paymentMethod',
+                           'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'type', 'amount', 'categoryId', 'categoryNameBn',
+                           'categoryNameEn', 'timestampMillis', 'note', 'paymentMethod',
+                           'photoUri', 'clientRequestId', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidTransaction(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(transactionId) &&
+                         isValidTransaction(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         hasValidTimestampsOnUpdate(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'type', 'amount', 'categoryId', 'categoryNameBn', 'categoryNameEn',
+                           'timestampMillis', 'note', 'paymentMethod', 'photoUri', 'isDemo', 'updatedAt'
+                         ]);
+      }
+
+      match /budgets/{budgetId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(budgetId);
+        allow create: if isOwner(userId) &&
+                         isValidId(budgetId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'categoryId', 'categoryNameBn', 'categoryNameEn',
+                           'monthKey', 'limitAmount', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'categoryId', 'categoryNameBn', 'categoryNameEn',
+                           'monthKey', 'limitAmount', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidBudget(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(budgetId) &&
+                         isValidBudget(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         hasValidTimestampsOnUpdate(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'categoryId', 'categoryNameBn', 'categoryNameEn',
+                           'monthKey', 'limitAmount', 'isDemo', 'updatedAt'
+                         ]);
+      }
+
+      match /savingsGoals/{goalId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(goalId);
+        allow create: if isOwner(userId) &&
+                         isValidId(goalId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'targetAmount', 'savedAmount',
+                           'targetDateMillis', 'iconKey', 'colorHex', 'isDemo',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'targetAmount', 'savedAmount',
+                           'targetDateMillis', 'iconKey', 'colorHex', 'isDemo',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidSavingsGoal(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(goalId) &&
+                         isValidSavingsGoal(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         hasValidTimestampsOnUpdate(incoming()) &&
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly(['savedAmount', 'updatedAt']) ||
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'title', 'targetAmount', 'savedAmount', 'targetDateMillis',
+                             'iconKey', 'colorHex', 'isDemo', 'updatedAt'
+                           ])
+                         );
+      }
+
+      match /savingsEntries/{entryId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(entryId);
+        allow create: if isOwner(userId) &&
+                         isValidId(entryId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'goalId', 'goalTitle', 'amount', 'note',
+                           'timestampMillis', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'goalId', 'goalTitle', 'amount', 'note',
+                           'timestampMillis', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidSavingsEntry(incoming(), userId) &&
+                         existsAfter(/databases/$(database)/documents/users/$(userId)/savingsGoals/$(incoming().goalId));
+        allow update: if false;
+      }
+
+      match /lendBorrows/{recordId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(recordId);
+        allow create: if isOwner(userId) &&
+                         isValidId(recordId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'kind', 'personName', 'phoneNumber', 'totalAmount',
+                           'paidAmount', 'dateMillis', 'dueDateMillis', 'description',
+                           'status', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'kind', 'personName', 'phoneNumber', 'totalAmount',
+                           'paidAmount', 'dateMillis', 'dueDateMillis', 'description',
+                           'status', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidLendBorrow(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(recordId) &&
+                         isValidLendBorrow(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         hasValidTimestampsOnUpdate(incoming()) &&
+                         existing().status != 'paid' &&
+                         (
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['paidAmount', 'status', 'updatedAt'])) ||
+                           (incoming().diff(existing()).affectedKeys().hasOnly([
+                             'kind', 'personName', 'phoneNumber', 'totalAmount',
+                             'paidAmount', 'dateMillis', 'dueDateMillis', 'description',
+                             'status', 'isDemo', 'updatedAt'
+                           ]))
+                         );
+      }
+
+      match /lendBorrowPayments/{paymentId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(paymentId);
+        allow create: if isOwner(userId) &&
+                         isValidId(paymentId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'recordId', 'amount', 'note',
+                           'timestampMillis', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'recordId', 'amount', 'note',
+                           'timestampMillis', 'isDemo', 'createdAt', 'updatedAt'
+                         ]) &&
+                         hasValidTimestampsOnCreate(incoming()) &&
+                         isValidLendBorrowPayment(incoming(), userId) &&
+                         existsAfter(/databases/$(database)/documents/users/$(userId)/lendBorrows/$(incoming().recordId));
+        allow update: if false;
+      }
+    }
+  }
+}
